@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles/App.css';
 
-import Header from './Components/Header';
-import Footer from './Components/Footer';
-import SearchBar from './Components/SearchBar';
-import ChemnitzMap from './Components/Map';
-import Legend from './Components/Legend';
+import Header from './components/Map_UI/Header';
+import Footer from './components/Map_UI/Footer';
+import SearchBar from './components/Map_UI/SearchBar';
+import ChemnitzMap from './components/Map_UI/Map';
+import Legend from './components/Map_UI/Legend';
 
 import {
   FilterState,

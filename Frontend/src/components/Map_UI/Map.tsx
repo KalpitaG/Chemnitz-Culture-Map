@@ -11,8 +11,8 @@ import {
   FilterState,
   SourceType,
   MapLayerToggles
-} from '../types';
-import { geoUtils } from '../services/api';
+} from '../../types';
+import { geoUtils } from '../../services/api';
 
 // Fix Leaflet default markers
 delete (L.Icon.Default.prototype as any)._getIconUrl;
