@@ -1,8 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// types/index.ts
 export interface Location {
   type: 'Point';
   coordinates: [number, number]; // [longitude, latitude]
 }
 
+// Use const objects instead of enums to avoid conflicts
 export const CategoryType = {
   THEATRE: 'theatre',
   MUSEUM: 'museum',
@@ -64,7 +67,7 @@ export interface District {
   properties?: Record<string, any>;
 }
 
-//  Simplified district for dropdowns
+// Simplified district for dropdowns
 export interface DistrictName {
   id: string;
   name: string;
@@ -89,7 +92,7 @@ export interface NearbyParams {
   limit?: number;
 }
 
-//  Enhanced API response types
+// Enhanced API response types
 export interface ApiResponse<T> {
   data: T;
   total?: number;
@@ -135,7 +138,7 @@ export interface Category {
   count: number;
 }
 
-//  Quick stats for performance
+// Quick stats for performance
 export interface QuickStats {
   total_sites: number;
   chemnitz_sites: number;
@@ -153,16 +156,18 @@ export interface MapLayerToggles {
   showDistricts: boolean;
 }
 
-//  Enhanced filter state
+// Enhanced filter state (updated version)
 export interface FilterState {
-  category?: CategoryType;
+  search: string;
   source: SourceType;
   district?: string;
-  search: string;
+  category?: CategoryType; // Keep for backward compatibility
+  categories?: CategoryType[]; // New multi-select categories
+  parkingTypes?: ParkingType[]; // New parking filter
   mapLayers: MapLayerToggles;
 }
 
-//  Performance monitoring
+// Performance monitoring
 export interface PerformanceMetrics {
   loadTime: number;
   dataSize: number;

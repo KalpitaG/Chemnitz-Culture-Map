@@ -11,6 +11,35 @@ import {
   QuickStats
 } from '../types';
 
+// Auth Types
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface RegisterData {
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  is_active: boolean;
+  is_admin: boolean;
+  created_at: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: User;
+}
+
 // Define DistrictName locally if not exported from types
 interface DistrictName {
   id: string;
@@ -28,9 +57,42 @@ const api = axios.create({
   },
 });
 
-// Request interceptor for debugging
+// Token management
+const TOKEN_KEY = 'auth_token';
+const USER_KEY = 'auth_user';
+
+export const tokenManager = {
+  getToken(): string | null {
+    return localStorage.getItem(TOKEN_KEY);
+  },
+
+  setToken(token: string): void {
+    localStorage.setItem(TOKEN_KEY, token);
+  },
+
+  removeToken(): void {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+  },
+
+  getUser(): User | null {
+    const userStr = localStorage.getItem(USER_KEY);
+    return userStr ? JSON.parse(userStr) : null;
+  },
+
+  setUser(user: User): void {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  }
+};
+
+// Request interceptor for authentication
 api.interceptors.request.use(
   (config) => {
+    const token = tokenManager.getToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
     console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`);
     if (config.params) {
       console.log(`📊 Parameters:`, config.params);
@@ -43,7 +105,7 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor for error handling and performance monitoring
+// Response interceptor for error handling and token management
 api.interceptors.response.use(
   (response: AxiosResponse) => {
     const loadTime = Date.now() - (response.config as any).requestStartTime;
@@ -51,8 +113,15 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    
     console.error('❌ API Response Error:', error.response?.data || error.message);
+    
+    // Handle 401 Unauthorized - token expired or invalid
+    if (error.response?.status === 401) {
+      tokenManager.removeToken();
+      // You might want to redirect to login here or emit an event
+      window.dispatchEvent(new CustomEvent('auth:logout'));
+    }
+    
     return Promise.reject(error);
   }
 );
@@ -65,6 +134,75 @@ api.interceptors.request.use((config) => {
 
 // API service functions
 export const apiService = {
+  // Authentication endpoints
+  async login(credentials: LoginCredentials): Promise<AuthResponse> {
+    try {
+      const response = await api.post('/api/auth/login', credentials);
+      const authData: AuthResponse = response.data;
+      
+      // Store token and user data
+      tokenManager.setToken(authData.access_token);
+      tokenManager.setUser(authData.user);
+      
+      console.log('✅ Login successful:', authData.user.email);
+      return authData;
+    } catch (error: any) {
+      console.error('❌ Login failed:', error.response?.data?.detail || error.message);
+      throw new Error(error.response?.data?.detail || 'Login failed');
+    }
+  },
+
+  async register(userData: RegisterData): Promise<AuthResponse> {
+    try {
+      const response = await api.post('/api/auth/register', userData);
+      const authData: AuthResponse = response.data;
+      
+      // Store token and user data
+      tokenManager.setToken(authData.access_token);
+      tokenManager.setUser(authData.user);
+      
+      console.log('✅ Registration successful:', authData.user.email);
+      return authData;
+    } catch (error: any) {
+      console.error('❌ Registration failed:', error.response?.data?.detail || error.message);
+      throw new Error(error.response?.data?.detail || 'Registration failed');
+    }
+  },
+
+  async logout(): Promise<void> {
+    try {
+      await api.post('/api/auth/logout');
+    } catch (error) {
+      console.error('❌ Logout API call failed:', error);
+    } finally {
+      // Always clear local storage
+      tokenManager.removeToken();
+      console.log('✅ Logged out successfully');
+    }
+  },
+
+  async getCurrentUser(): Promise<User> {
+    try {
+      const response = await api.get('/api/auth/me');
+      const user: User = response.data;
+      tokenManager.setUser(user); // Update stored user data
+      return user;
+    } catch (error: any) {
+      console.error('❌ Failed to get current user:', error.response?.data?.detail || error.message);
+      throw new Error(error.response?.data?.detail || 'Failed to get user info');
+    }
+  },
+
+  // Check if user is authenticated
+  isAuthenticated(): boolean {
+    return !!tokenManager.getToken();
+  },
+
+  // Get current user from localStorage
+  getCurrentUserFromStorage(): User | null {
+    return tokenManager.getUser();
+  },
+
   // Health check
   async healthCheck(): Promise<{ status: string }> {
     const response = await api.get('/api/health');
@@ -83,7 +221,6 @@ export const apiService = {
     
     console.log('🔍 Cultural Sites raw response:', response.data);
     
-    // Backend returns: { "sites": [...], "parking_lots": [...], "districts": [...] }
     if (response.data && Array.isArray(response.data.sites)) {
       return response.data.sites.map((site: any) => ({
         id: site.id,
@@ -129,7 +266,6 @@ export const apiService = {
     
     console.log('🔍 Parking lots raw response:', response.data);
     
-    // Backend returns: { "parking_lots": [...] }
     if (response.data && Array.isArray(response.data.parking_lots)) {
       return response.data.parking_lots.map((parking: any) => ({
         id: parking.id,
@@ -251,7 +387,6 @@ export const apiService = {
     } = options;
 
     try {
-      // Get cultural sites with optional data in one request
       const sitesParams: SearchParams = {
         limit,
         include_parking: includeParking,
@@ -284,7 +419,6 @@ export const apiService = {
 export const geoUtils = {
   // Convert MongoDB GeoJSON to Leaflet format
   mongoLocationToLeaflet(location: { coordinates: [number, number] }): [number, number] {
-    // MongoDB stores as [lng, lat], Leaflet expects [lat, lng]
     return [location.coordinates[1], location.coordinates[0]];
   },
 
@@ -292,13 +426,13 @@ export const geoUtils = {
   leafletToMongoLocation(lat: number, lng: number): { type: 'Point'; coordinates: [number, number] } {
     return {
       type: 'Point',
-      coordinates: [lng, lat] // MongoDB format: [lng, lat]
+      coordinates: [lng, lat]
     };
   },
 
   // Calculate distance between two points (rough approximation)
   calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-    const R = 6371; // Earth's radius in km
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLng = (lng2 - lng1) * Math.PI / 180;
     const a = Math.sin(dLat/2) * Math.sin(dLat/2) +

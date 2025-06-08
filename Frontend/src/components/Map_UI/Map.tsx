@@ -87,7 +87,7 @@ const ChemnitzMap: React.FC<ChemnitzMapProps> = ({
   const districtsLayerRef = useRef<L.LayerGroup | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false); // ⇦ Added for “Menu” dropdown
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Enhanced category colors with better contrast
   const getCategoryColor = (category: CategoryType): string => {
