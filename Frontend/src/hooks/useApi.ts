@@ -224,6 +224,7 @@ export function useMapData(options: {
   includeParking?: boolean;
   includeDistricts?: boolean;
   limit?: number;
+  includeChemnitzWhenSaxony?: boolean;
 } = {}) {
   const [data, setData] = useState<{
     sites: CulturalSite[];
@@ -256,14 +257,33 @@ export function useMapData(options: {
     const startTime = performanceUtils.startTimer();
 
     try {
-      const result = await apiService.getMapData(options);
-      setData(result);
+      let finalResult;
+
+    if (options.source === 'sachsen_geojson') {
+      // Fetch both Sachsen and Chemnitz data
+      const [sachsenData, chemnitzData] = await Promise.all([
+        apiService.getMapData({ ...options, source: 'sachsen_geojson' }),
+        apiService.getMapData({ ...options, source: 'chemnitz_geojson' }),
+      ]);
+
+      // Merge cultural sites and parking from both sources
+      finalResult = {
+        sites: [...sachsenData.sites, ...chemnitzData.sites],
+        parking: [...sachsenData.parking, ...chemnitzData.parking],
+        districts: [...sachsenData.districts, ...chemnitzData.districts],
+      };
+    } else {
+      // Default to single source fetch
+      finalResult = await apiService.getMapData(options);
+    }
+
+setData(finalResult);
       
       const duration = performanceUtils.endTimer(startTime);
       performanceUtils.logPerformance(
         'Map Data Load', 
         duration, 
-        JSON.stringify(result).length
+        JSON.stringify(finalResult).length
       );
       
     } catch (err: any) {
@@ -367,4 +387,4 @@ export function usePerformanceMonitoring() {
     startMeasurement,
     endMeasurement
   };
-}
+}useMapData
