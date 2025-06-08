@@ -490,7 +490,6 @@ const ChemnitzMap: React.FC<ChemnitzMapProps> = ({
                       className="px-3 py-2 bg-white border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value={SourceType.CHEMNITZ}>🏛️ Chemnitz</option>
-                      <option value={SourceType.ALL}>🌍 All Regions</option>
                       <option value={SourceType.SACHSEN}>🏰 Saxony</option>
                     </select>
                   </div>
@@ -631,7 +630,7 @@ const ChemnitzMap: React.FC<ChemnitzMapProps> = ({
       </nav>
 
       {/* ─── PERFORMANCE NOTICE ─── */}
-      {filterState.source === SourceType.ALL && culturalSites.length > 1000 && (
+      {filterState.source === SourceType.SACHSEN && culturalSites.length > 1000 && (
         <div className="bg-amber-50 border-b border-amber-200">
           <div className="max-w-7xl mx-auto px-6 py-2">
             <div className="flex items-center gap-2 text-sm text-amber-800">

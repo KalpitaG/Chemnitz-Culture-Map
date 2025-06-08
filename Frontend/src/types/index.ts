@@ -21,7 +21,6 @@ export type ParkingType = typeof ParkingType[keyof typeof ParkingType];
 
 // Source types for better filtering
 export const SourceType = {
-  ALL: 'all',
   CHEMNITZ: 'chemnitz_geojson',
   SACHSEN: 'sachsen_geojson'
 } as const;
