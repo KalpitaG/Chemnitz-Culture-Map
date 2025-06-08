@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiService, performanceUtils } from '../services/api';
 import { 
@@ -6,14 +7,9 @@ import {
   District, 
   SearchParams, 
   NearbyParams, 
-  QuickStats,
   LoadingState 
 } from '../types';
 
-interface DistrictName {
-  id: string;
-  name: string;
-}
 
 interface UseApiState<T> {
   data: T | null;

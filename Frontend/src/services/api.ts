@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import axios, { AxiosResponse } from 'axios';
 import {
   CulturalSite,
@@ -7,7 +8,6 @@ import {
   SearchParams,
   NearbyParams,
   CulturalSitesResponse,
-  ParkingLotsResponse,
   QuickStats
 } from '../types';
 
@@ -51,6 +51,7 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    
     console.error('❌ API Response Error:', error.response?.data || error.message);
     return Promise.reject(error);
   }
