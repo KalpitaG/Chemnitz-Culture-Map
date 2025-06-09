@@ -25,6 +25,7 @@ const Layout: React.FC<LayoutProps> = ({
   districtsLoading = false
 }) => {
   const { user, logout } = useAuth();
+  
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
@@ -149,16 +150,6 @@ const Layout: React.FC<LayoutProps> = ({
                   <button
                     onClick={() => {
                       setUserDropdownOpen(false);
-                      // TODO: Add favorites functionality
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                  >
-                    <i className="fas fa-heart mr-3 text-red-500"></i>
-                    Favorites
-                  </button>
-                  <button
-                    onClick={() => {
-                      setUserDropdownOpen(false);
                       // TODO: Add account functionality
                     }}
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
@@ -207,7 +198,7 @@ const Layout: React.FC<LayoutProps> = ({
                 </button>
                 
                 {locationDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
+                  <div className="absolute left-full top-0 ml-2 bg-white border border-gray-300 rounded-lg shadow-lg z-10 min-w-[200px]">
                     <button
                       onClick={() => {
                         onFilterUpdate({ source: SourceType.CHEMNITZ });
@@ -272,7 +263,7 @@ const Layout: React.FC<LayoutProps> = ({
                 </button>
                 
                 {filterDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 p-4">
+                  <div className="absolute left-full top-0 ml-2 bg-white border border-gray-300 rounded-lg shadow-lg z-10 p-4 min-w-[250px]">
                     <div className="space-y-3">
                       {/* All Option */}
                       <label className="flex items-center space-x-3 cursor-pointer">
@@ -324,7 +315,7 @@ const Layout: React.FC<LayoutProps> = ({
                 </button>
                 
                 {parkingDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 p-4">
+                  <div className="absolute left-full top-0 ml-2 bg-white border border-gray-300 rounded-lg shadow-lg z-10 p-4 min-w-[200px]">
                     <div className="space-y-3">
                       {Object.values(ParkingType).map((parkingType) => (
                         <label key={parkingType} className="flex items-center space-x-3 cursor-pointer">
