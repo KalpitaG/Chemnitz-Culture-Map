@@ -13,7 +13,7 @@
   background-color: white;
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   border-bottom: 1px solid #e5e7eb;
-  z-index: 40;
+  z-index: 1150;
 }
 
 .header-content {
@@ -268,13 +268,13 @@
   left: 0;
   right: 0;
   top: calc(100% + 4px);
+  z-index: 1001;
+  max-height: 300px;
+  overflow-y: auto;
   background-color: white;
   border: 1px solid #d1d5db;
   border-radius: 0.5rem;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  z-index: 1001;
-  max-height: 300px;
-  overflow-y: auto;
 }
 
 .dropdown-menu.filter,
@@ -286,7 +286,7 @@
 
 /* Ensure dropdowns appear above map */
 .dropdown-menu.location {
-  min-width: 12rem;
+  padding: 0.5rem;
 }
 
 .dropdown-item {
@@ -417,4 +417,17 @@
 /* Main Content */
 .main-content {
   flex: 1;
+}
+
+.checkbox-list-container {
+  background-color: #f9fafb;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+.checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }

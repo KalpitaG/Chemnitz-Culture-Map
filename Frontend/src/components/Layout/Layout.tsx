@@ -32,23 +32,22 @@ const Layout: React.FC<LayoutProps> = ({
   const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [parkingDropdownOpen, setParkingDropdownOpen] = useState(false);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
   // Refs for dropdown positioning
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const parkingButtonRef = useRef<HTMLButtonElement>(null);
   const locationButtonRef = useRef<HTMLButtonElement>(null);
+  const userDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (filterButtonRef.current && !filterButtonRef.current.contains(event.target as Node)) {
-        setFilterDropdownOpen(false);
-      }
-      if (parkingButtonRef.current && !parkingButtonRef.current.contains(event.target as Node)) {
-        setParkingDropdownOpen(false);
-      }
       if (locationButtonRef.current && !locationButtonRef.current.contains(event.target as Node)) {
         setLocationDropdownOpen(false);
+      }
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
+        setUserDropdownOpen(false);
       }
     };
 
@@ -63,6 +62,15 @@ const Layout: React.FC<LayoutProps> = ({
     dropdownSetter: React.Dispatch<React.SetStateAction<boolean>>,
     currentState: boolean
   ) => {
+    if (!currentState && locationButtonRef.current) {
+      const rect = locationButtonRef.current.getBoundingClientRect();
+      setDropdownStyle({
+        position: 'absolute',
+        top: `${rect.bottom + 4}px`,
+        left: `${rect.left}px`,
+        width: `${rect.width}px`,
+      });
+    }
     setUserDropdownOpen(false);
     setLocationDropdownOpen(false);
     setFilterDropdownOpen(false);
@@ -143,17 +151,17 @@ const Layout: React.FC<LayoutProps> = ({
   };
 
   // Function to get dropdown position
-  const getDropdownStyle = useCallback((buttonRef: React.RefObject<HTMLButtonElement>) => {
+  const getDropdownStyle = (buttonRef: React.RefObject<HTMLButtonElement>): React.CSSProperties => {
     if (!buttonRef.current) return {};
     
     const rect = buttonRef.current.getBoundingClientRect();
     return {
-      position: 'fixed' as const,
-      top: rect.bottom + 4,
-      left: rect.left,
-      zIndex: 9999
+      position: 'absolute',
+      top: `${rect.bottom + 4}px`,
+      left: `${rect.left}px`,
+      width: `${rect.width}px`,
     };
-  }, []);
+  };
 
   const isParkingSelected = (parkingType: ParkingType): boolean => {
     return filterState.parkingTypes?.includes(parkingType) || false;
@@ -177,7 +185,7 @@ const Layout: React.FC<LayoutProps> = ({
 
           {/* Right User Section */}
           <div className="header-right-section">
-            <div className="user-dropdown-container">
+            <div className="user-dropdown-container" ref={userDropdownRef}>
               <button
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                 className="user-button"
@@ -251,7 +259,10 @@ const Layout: React.FC<LayoutProps> = ({
                 </button>
                 
                 {locationDropdownOpen && (
-                  <div className="dropdown-menu location">
+                  <div 
+                    className="dropdown-menu location" 
+                    style={dropdownStyle}
+                  >
                     <button
                       onClick={() => {
                         onFilterUpdate({ source: SourceType.CHEMNITZ });
@@ -303,52 +314,41 @@ const Layout: React.FC<LayoutProps> = ({
             <div className="section">
               <h3 className="section-title">
                 <i className="fas fa-filter section-icon filter"></i>
-                Filter
+                Cultural Sites
               </h3>
               
-              <div className="dropdown-container">
-                <button
-                  ref={filterButtonRef}
-                  onClick={() => handleDropdownToggle(setFilterDropdownOpen, filterDropdownOpen)}
-                  className="dropdown-button"
-                >
-                  <span>Cultural Sites</span>
-                  <i className={`fas fa-chevron-down dropdown-chevron ${filterDropdownOpen ? 'open' : ''}`}></i>
-                </button>
-                
-                {filterDropdownOpen && (
-                  <div className="dropdown-menu filter">
-                    <div className="checkbox-list">
-                      {/* All Option */}
-                      <label className="checkbox-item">
-                        <input
-                          type="checkbox"
-                          checked={!filterState.categories || filterState.categories.length === 0}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              onFilterUpdate({ categories: [] });
-                            }
-                          }}
-                          className="checkbox-input blue"
-                        />
-                        <span className="checkbox-label bold">All</span>
-                      </label>
-                      
-                      {/* Category Options */}
-                      {(Object.values(CategoryType) as CategoryType[]).map((category) => (
-                        <label key={category} className="checkbox-item">
-                          <input
-                            type="checkbox"
-                            checked={isCategorySelected(category)}
-                            onChange={(e) => handleCategoryChange(category, e.target.checked)}
-                            className="checkbox-input blue"
-                          />
-                          <span className="checkbox-label">{category}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              <div className="checkbox-list-container">
+                <div className="checkbox-list">
+                  {/* All Option */}
+                  <label className="checkbox-item">
+                    <input
+                      type="checkbox"
+                      checked={!filterState.categories || filterState.categories.length === 0 || filterState.categories.length === Object.keys(CategoryType).length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          onFilterUpdate({ categories: Object.values(CategoryType) });
+                        } else {
+                          onFilterUpdate({ categories: [] });
+                        }
+                      }}
+                      className="checkbox-input blue"
+                    />
+                    <span className="checkbox-label bold">All</span>
+                  </label>
+                  
+                  {/* Category Options */}
+                  {(Object.values(CategoryType) as CategoryType[]).map((category) => (
+                    <label key={category} className="checkbox-item">
+                      <input
+                        type="checkbox"
+                        checked={isCategorySelected(category)}
+                        onChange={(e) => handleCategoryChange(category, e.target.checked)}
+                        className="checkbox-input blue"
+                      />
+                      <span className="checkbox-label">{category}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -356,38 +356,25 @@ const Layout: React.FC<LayoutProps> = ({
             <div className="section">
               <h3 className="section-title">
                 <i className="fas fa-parking section-icon parking"></i>
-                Parking
+                Parking Options
               </h3>
               
-              <div className="dropdown-container">
-                <button
-                  ref={parkingButtonRef}
-                  onClick={() => handleDropdownToggle(setParkingDropdownOpen, parkingDropdownOpen)}
-                  className="dropdown-button"
-                >
-                  <span>Parking Options</span>
-                  <i className={`fas fa-chevron-down dropdown-chevron ${parkingDropdownOpen ? 'open' : ''}`}></i>
-                </button>
-                
-                {parkingDropdownOpen && (
-                  <div className="dropdown-menu parking">
-                    <div className="checkbox-list">
-                      {(Object.values(ParkingType) as ParkingType[]).map((parkingType) => (
-                        <label key={parkingType} className="checkbox-item">
-                          <input
-                            type="checkbox"
-                            checked={isParkingSelected(parkingType)}
-                            onChange={(e) => handleParkingChange(parkingType, e.target.checked)}
-                            className="checkbox-input purple"
-                          />
-                          <span className="checkbox-label">
-                            {parkingType === ParkingType.BUS ? '🚌' : '🚐'} {parkingType}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              <div className="checkbox-list-container">
+                <div className="checkbox-list">
+                  {(Object.values(ParkingType) as ParkingType[]).map((parkingType) => (
+                    <label key={parkingType} className="checkbox-item">
+                      <input
+                        type="checkbox"
+                        checked={isParkingSelected(parkingType)}
+                        onChange={(e) => handleParkingChange(parkingType, e.target.checked)}
+                        className="checkbox-input purple"
+                      />
+                      <span className="checkbox-label">
+                        {parkingType === ParkingType.BUS ? '🚌 Bus' : '🚐 Caravan'}
+                      </span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
 

@@ -17,7 +17,8 @@ import { Auth } from './components/Auth/Auth';
 import {
   FilterState,
   SourceType,
-  ParkingType
+  ParkingType,
+  CategoryType
 } from './types';
 
 import {
@@ -31,8 +32,7 @@ const MainApp: React.FC = () => {
     search: '',
     source: SourceType.CHEMNITZ,
     district: undefined,
-    category: undefined,
-    categories: [], // New multi-select categories
+    categories: Object.values(CategoryType), // New multi-select categories
     parkingTypes: [ParkingType.BUS, ParkingType.CARAVAN], // Show all parking by default
     mapLayers: {
       showParking: true,
@@ -58,18 +58,13 @@ const MainApp: React.FC = () => {
     loadingState,
     error: mapError
   } = useMapData({
-    source: filterState.source !== SourceType.SACHSEN ? filterState.source : undefined,
+    source: filterState.source,
     district: filterState.district,
-    category: filterState.category || (filterState.categories && filterState.categories.length > 0 ? filterState.categories[0] : undefined),
+    categories: filterState.categories,
     includeParking: filterState.mapLayers.showParking,
     includeDistricts: filterState.mapLayers.showDistricts,
     includeChemnitzWhenSaxony: filterState.source === SourceType.SACHSEN
   });
-
-  // Filter sites based on selected categories
-  const filteredSites = filterState.categories && filterState.categories.length > 0
-    ? sites.filter(site => filterState.categories!.includes(site.category))
-    : sites;
 
   // Filter parking based on selected types
   const filteredParking = filterState.parkingTypes && filterState.parkingTypes.length > 0
@@ -84,7 +79,7 @@ const MainApp: React.FC = () => {
       districtsLoading={districtsLoading}
     >
       <MapContainer
-        culturalSites={filteredSites}
+        culturalSites={sites}
         parkingLots={filteredParking}
         districts={districts}
         loading={loadingState.sites}

@@ -221,6 +221,7 @@ export function useMapData(options: {
   source?: string;
   district?: string;
   category?: string;
+  categories?: string[];
   includeParking?: boolean;
   includeDistricts?: boolean;
   limit?: number;
