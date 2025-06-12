@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // components/Layout/Layout.tsx
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { 
   FilterState, 
@@ -8,6 +9,7 @@ import {
   CategoryType,
   ParkingType 
 } from '../../types';
+import './Layout.css';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -30,6 +32,43 @@ const Layout: React.FC<LayoutProps> = ({
   const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [parkingDropdownOpen, setParkingDropdownOpen] = useState(false);
+
+  // Refs for dropdown positioning
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
+  const parkingButtonRef = useRef<HTMLButtonElement>(null);
+  const locationButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterButtonRef.current && !filterButtonRef.current.contains(event.target as Node)) {
+        setFilterDropdownOpen(false);
+      }
+      if (parkingButtonRef.current && !parkingButtonRef.current.contains(event.target as Node)) {
+        setParkingDropdownOpen(false);
+      }
+      if (locationButtonRef.current && !locationButtonRef.current.contains(event.target as Node)) {
+        setLocationDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Close other dropdowns when opening one
+  const handleDropdownToggle = (
+    dropdownSetter: React.Dispatch<React.SetStateAction<boolean>>,
+    currentState: boolean
+  ) => {
+    setUserDropdownOpen(false);
+    setLocationDropdownOpen(false);
+    setFilterDropdownOpen(false);
+    setParkingDropdownOpen(false);
+    dropdownSetter(!currentState);
+  };
 
   // Get user initials
   const getUserInitials = (user: any): string => {
@@ -103,66 +142,79 @@ const Layout: React.FC<LayoutProps> = ({
     return filterState.categories?.includes(category) || false;
   };
 
+  // Function to get dropdown position
+  const getDropdownStyle = useCallback((buttonRef: React.RefObject<HTMLButtonElement>) => {
+    if (!buttonRef.current) return {};
+    
+    const rect = buttonRef.current.getBoundingClientRect();
+    return {
+      position: 'fixed' as const,
+      top: rect.bottom + 4,
+      left: rect.left,
+      zIndex: 9999
+    };
+  }, []);
+
   const isParkingSelected = (parkingType: ParkingType): boolean => {
     return filterState.parkingTypes?.includes(parkingType) || false;
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="layout-container">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200 z-40">
-        <div className="flex items-center justify-between px-6 py-4">
+      <header className="layout-header">
+        <div className="header-content">
           {/* Left Sidebar Placeholder */}
-          <div className="w-64"></div>
+          <div className="header-left-placeholder"></div>
 
           {/* Center Title */}
-          <div className="flex-1 text-center">
-            <h1 className="text-2xl font-bold text-gray-800">
-              <i className="fas fa-map-marked-alt mr-2 text-blue-600"></i>
+          <div className="header-title-container">
+            <h1 className="header-title">
+              <i className="fas fa-map-marked-alt header-title-icon"></i>
               Chemnitz Cultural Explorer
             </h1>
           </div>
 
           {/* Right User Section */}
-          <div className="w-64 flex justify-end">
-            <div className="relative">
+          <div className="header-right-section">
+            <div className="user-dropdown-container">
               <button
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                className="flex items-center space-x-3 bg-gray-100 hover:bg-gray-200 rounded-lg px-4 py-2 transition-colors duration-200"
+                className="user-button"
               >
-                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-medium text-sm">
+                <div className="user-avatar">
                   {getUserInitials(user)}
                 </div>
-                <div className="text-left hidden sm:block">
-                  <div className="text-sm font-medium text-gray-800">
+                <div className="user-info">
+                  <div className="user-name">
                     {user?.first_name} {user?.last_name}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="user-email">
                     {user?.email}
                   </div>
                 </div>
-                <i className={`fas fa-chevron-down text-gray-400 transition-transform duration-200 ${userDropdownOpen ? 'rotate-180' : ''}`}></i>
+                <i className={`fas fa-chevron-down user-chevron ${userDropdownOpen ? 'open' : ''}`}></i>
               </button>
 
               {/* User Dropdown */}
               {userDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                <div className="user-dropdown-menu">
                   <button
                     onClick={() => {
                       setUserDropdownOpen(false);
                       // TODO: Add account functionality
                     }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                    className="user-dropdown-item account"
                   >
-                    <i className="fas fa-user mr-3 text-blue-500"></i>
+                    <i className="fas fa-user user-dropdown-icon account"></i>
                     Account
                   </button>
-                  <hr className="my-2 border-gray-200" />
+                  <hr className="user-dropdown-divider" />
                   <button
                     onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
+                    className="user-dropdown-item logout"
                   >
-                    <i className="fas fa-sign-out-alt mr-3"></i>
+                    <i className="fas fa-sign-out-alt user-dropdown-icon"></i>
                     Logout
                   </button>
                 </div>
@@ -173,39 +225,40 @@ const Layout: React.FC<LayoutProps> = ({
       </header>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex">
+      <div className="main-content-area">
         {/* Left Sidebar */}
-        <aside className="w-64 bg-white shadow-sm border-r border-gray-200 h-screen sticky top-0 overflow-y-auto">
-          <div className="p-6 space-y-6">
+        <aside className="sidebar">
+          <div className="sidebar-content">
             
             {/* Location Section */}
-            <div className="space-y-3">
-              <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-                <i className="fas fa-map-marker-alt mr-2 text-blue-600"></i>
+            <div className="section">
+              <h3 className="section-title">
+                <i className="fas fa-map-marker-alt section-icon location"></i>
                 Location
               </h3>
               
               {/* Location Dropdown */}
-              <div className="relative">
+              <div className="dropdown-container">
                 <button
-                  onClick={() => setLocationDropdownOpen(!locationDropdownOpen)}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors duration-200 flex items-center justify-between"
+                  ref={locationButtonRef}
+                  onClick={() => handleDropdownToggle(setLocationDropdownOpen, locationDropdownOpen)}
+                  className="dropdown-button"
                 >
                   <span>
                     {filterState.source === SourceType.CHEMNITZ ? '🏛️ Chemnitz' : '🏰 Saxony'}
                   </span>
-                  <i className={`fas fa-chevron-down transition-transform duration-200 ${locationDropdownOpen ? 'rotate-180' : ''}`}></i>
+                  <i className={`fas fa-chevron-down dropdown-chevron ${locationDropdownOpen ? 'open' : ''}`}></i>
                 </button>
                 
                 {locationDropdownOpen && (
-                  <div className="absolute left-full top-0 ml-2 bg-white border border-gray-300 rounded-lg shadow-lg z-10 min-w-[200px]">
+                  <div className="dropdown-menu location">
                     <button
                       onClick={() => {
                         onFilterUpdate({ source: SourceType.CHEMNITZ });
                         setLocationDropdownOpen(false);
                       }}
-                      className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition-colors ${
-                        filterState.source === SourceType.CHEMNITZ ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                      className={`dropdown-item ${
+                        filterState.source === SourceType.CHEMNITZ ? 'active' : 'inactive'
                       }`}
                     >
                       🏛️ Chemnitz
@@ -215,8 +268,8 @@ const Layout: React.FC<LayoutProps> = ({
                         onFilterUpdate({ source: SourceType.SACHSEN, district: undefined });
                         setLocationDropdownOpen(false);
                       }}
-                      className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition-colors ${
-                        filterState.source === SourceType.SACHSEN ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                      className={`dropdown-item ${
+                        filterState.source === SourceType.SACHSEN ? 'active' : 'inactive'
                       }`}
                     >
                       🏰 Saxony
@@ -227,13 +280,13 @@ const Layout: React.FC<LayoutProps> = ({
 
               {/* District Dropdown (only for Chemnitz) */}
               {filterState.source === SourceType.CHEMNITZ && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-2">District</label>
+                <div className="district-container">
+                  <label className="district-label">District</label>
                   <select
                     value={filterState.district || ''}
                     onChange={(e) => onFilterUpdate({ district: e.target.value || undefined })}
                     disabled={districtsLoading}
-                    className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+                    className="district-select"
                   >
                     <option value="">All Districts</option>
                     {districtNames.map((district) => (
@@ -247,26 +300,27 @@ const Layout: React.FC<LayoutProps> = ({
             </div>
 
             {/* Filter Section */}
-            <div className="space-y-3">
-              <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-                <i className="fas fa-filter mr-2 text-green-600"></i>
+            <div className="section">
+              <h3 className="section-title">
+                <i className="fas fa-filter section-icon filter"></i>
                 Filter
               </h3>
               
-              <div className="relative">
+              <div className="dropdown-container">
                 <button
-                  onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors duration-200 flex items-center justify-between"
+                  ref={filterButtonRef}
+                  onClick={() => handleDropdownToggle(setFilterDropdownOpen, filterDropdownOpen)}
+                  className="dropdown-button"
                 >
                   <span>Cultural Sites</span>
-                  <i className={`fas fa-chevron-down transition-transform duration-200 ${filterDropdownOpen ? 'rotate-180' : ''}`}></i>
+                  <i className={`fas fa-chevron-down dropdown-chevron ${filterDropdownOpen ? 'open' : ''}`}></i>
                 </button>
                 
                 {filterDropdownOpen && (
-                  <div className="absolute left-full top-0 ml-2 bg-white border border-gray-300 rounded-lg shadow-lg z-10 p-4 min-w-[250px]">
-                    <div className="space-y-3">
+                  <div className="dropdown-menu filter">
+                    <div className="checkbox-list">
                       {/* All Option */}
-                      <label className="flex items-center space-x-3 cursor-pointer">
+                      <label className="checkbox-item">
                         <input
                           type="checkbox"
                           checked={!filterState.categories || filterState.categories.length === 0}
@@ -275,21 +329,21 @@ const Layout: React.FC<LayoutProps> = ({
                               onFilterUpdate({ categories: [] });
                             }
                           }}
-                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          className="checkbox-input blue"
                         />
-                        <span className="text-sm font-medium text-gray-700">All</span>
+                        <span className="checkbox-label bold">All</span>
                       </label>
                       
                       {/* Category Options */}
-                      {Object.values(CategoryType).map((category) => (
-                        <label key={category} className="flex items-center space-x-3 cursor-pointer">
+                      {(Object.values(CategoryType) as CategoryType[]).map((category) => (
+                        <label key={category} className="checkbox-item">
                           <input
                             type="checkbox"
                             checked={isCategorySelected(category)}
                             onChange={(e) => handleCategoryChange(category, e.target.checked)}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            className="checkbox-input blue"
                           />
-                          <span className="text-sm text-gray-700 capitalize">{category}</span>
+                          <span className="checkbox-label">{category}</span>
                         </label>
                       ))}
                     </div>
@@ -299,33 +353,34 @@ const Layout: React.FC<LayoutProps> = ({
             </div>
 
             {/* Parking Section */}
-            <div className="space-y-3">
-              <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-                <i className="fas fa-parking mr-2 text-purple-600"></i>
+            <div className="section">
+              <h3 className="section-title">
+                <i className="fas fa-parking section-icon parking"></i>
                 Parking
               </h3>
               
-              <div className="relative">
+              <div className="dropdown-container">
                 <button
-                  onClick={() => setParkingDropdownOpen(!parkingDropdownOpen)}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors duration-200 flex items-center justify-between"
+                  ref={parkingButtonRef}
+                  onClick={() => handleDropdownToggle(setParkingDropdownOpen, parkingDropdownOpen)}
+                  className="dropdown-button"
                 >
                   <span>Parking Options</span>
-                  <i className={`fas fa-chevron-down transition-transform duration-200 ${parkingDropdownOpen ? 'rotate-180' : ''}`}></i>
+                  <i className={`fas fa-chevron-down dropdown-chevron ${parkingDropdownOpen ? 'open' : ''}`}></i>
                 </button>
                 
                 {parkingDropdownOpen && (
-                  <div className="absolute left-full top-0 ml-2 bg-white border border-gray-300 rounded-lg shadow-lg z-10 p-4 min-w-[200px]">
-                    <div className="space-y-3">
-                      {Object.values(ParkingType).map((parkingType) => (
-                        <label key={parkingType} className="flex items-center space-x-3 cursor-pointer">
+                  <div className="dropdown-menu parking">
+                    <div className="checkbox-list">
+                      {(Object.values(ParkingType) as ParkingType[]).map((parkingType) => (
+                        <label key={parkingType} className="checkbox-item">
                           <input
                             type="checkbox"
                             checked={isParkingSelected(parkingType)}
                             onChange={(e) => handleParkingChange(parkingType, e.target.checked)}
-                            className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            className="checkbox-input purple"
                           />
-                          <span className="text-sm text-gray-700 capitalize flex items-center">
+                          <span className="checkbox-label">
                             {parkingType === ParkingType.BUS ? '🚌' : '🚐'} {parkingType}
                           </span>
                         </label>
@@ -340,7 +395,7 @@ const Layout: React.FC<LayoutProps> = ({
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1">
+        <main className="main-content">
           {children}
         </main>
       </div>

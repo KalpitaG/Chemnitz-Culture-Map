@@ -387,4 +387,4 @@ export function usePerformanceMonitoring() {
     startMeasurement,
     endMeasurement
   };
-}useMapData
+}
