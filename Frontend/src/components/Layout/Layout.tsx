@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// components/Layout/Layout.tsx
+// components/Layout/Layout.tsx - FIXED VERSION WITH SAXONY DROPDOWN
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { 
-  FilterState, 
-  SourceType, 
+import {
+  FilterState,
+  SourceType,
   CategoryType,
-  ParkingType 
+  ParkingType
 } from '../../types';
 import './Layout.css';
 
@@ -27,16 +27,11 @@ const Layout: React.FC<LayoutProps> = ({
   districtsLoading = false
 }) => {
   const { user, logout } = useAuth();
-  
+
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
-  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
-  const [parkingDropdownOpen, setParkingDropdownOpen] = useState(false);
-  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
   // Refs for dropdown positioning
-  const filterButtonRef = useRef<HTMLButtonElement>(null);
-  const parkingButtonRef = useRef<HTMLButtonElement>(null);
   const locationButtonRef = useRef<HTMLButtonElement>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -57,27 +52,6 @@ const Layout: React.FC<LayoutProps> = ({
     };
   }, []);
 
-  // Close other dropdowns when opening one
-  const handleDropdownToggle = (
-    dropdownSetter: React.Dispatch<React.SetStateAction<boolean>>,
-    currentState: boolean
-  ) => {
-    if (!currentState && locationButtonRef.current) {
-      const rect = locationButtonRef.current.getBoundingClientRect();
-      setDropdownStyle({
-        position: 'absolute',
-        top: `${rect.bottom + 4}px`,
-        left: `${rect.left}px`,
-        width: `${rect.width}px`,
-      });
-    }
-    setUserDropdownOpen(false);
-    setLocationDropdownOpen(false);
-    setFilterDropdownOpen(false);
-    setParkingDropdownOpen(false);
-    dropdownSetter(!currentState);
-  };
-
   // Get user initials
   const getUserInitials = (user: any): string => {
     if (!user) return 'U';
@@ -90,23 +64,23 @@ const Layout: React.FC<LayoutProps> = ({
     if (window.confirm('Are you sure you want to logout?')) {
       try {
         console.log('🔐 Layout: Starting logout...');
-        
+
         // Close dropdown first
         setUserDropdownOpen(false);
-        
+
         // Call logout from auth hook
         await logout();
-        
+
         console.log('✅ Layout: Logout completed');
-        
+
         // Force page reload as backup (this ensures clean state)
         setTimeout(() => {
           window.location.reload();
         }, 100);
-        
+
       } catch (error) {
         console.error('❌ Layout: Logout error:', error);
-        
+
         // Even if there's an error, force logout
         setTimeout(() => {
           window.location.reload();
@@ -122,13 +96,14 @@ const Layout: React.FC<LayoutProps> = ({
   const handleCategoryChange = (category: CategoryType, checked: boolean) => {
     const currentCategories = filterState.categories || [];
     let newCategories: CategoryType[];
-    
+
     if (checked) {
       newCategories = [...currentCategories, category];
     } else {
       newCategories = currentCategories.filter(c => c !== category);
     }
-    
+
+    console.log('🎭 Category change:', { category, checked, newCategories });
     onFilterUpdate({ categories: newCategories });
   };
 
@@ -136,13 +111,14 @@ const Layout: React.FC<LayoutProps> = ({
   const handleParkingChange = (parkingType: ParkingType, checked: boolean) => {
     const currentParking = filterState.parkingTypes || [];
     let newParking: ParkingType[];
-    
+
     if (checked) {
       newParking = [...currentParking, parkingType];
     } else {
       newParking = currentParking.filter(p => p !== parkingType);
     }
-    
+
+    console.log('🚗 Parking change:', { parkingType, checked, newParking });
     onFilterUpdate({ parkingTypes: newParking });
   };
 
@@ -150,21 +126,20 @@ const Layout: React.FC<LayoutProps> = ({
     return filterState.categories?.includes(category) || false;
   };
 
-  // Function to get dropdown position
-  const getDropdownStyle = (buttonRef: React.RefObject<HTMLButtonElement>): React.CSSProperties => {
-    if (!buttonRef.current) return {};
-    
-    const rect = buttonRef.current.getBoundingClientRect();
-    return {
-      position: 'absolute',
-      top: `${rect.bottom + 4}px`,
-      left: `${rect.left}px`,
-      width: `${rect.width}px`,
-    };
-  };
-
   const isParkingSelected = (parkingType: ParkingType): boolean => {
     return filterState.parkingTypes?.includes(parkingType) || false;
+  };
+
+  // FIXED: Helper function to get location display text
+  const getLocationDisplayText = (): string => {
+    switch (filterState.source) {
+      case SourceType.CHEMNITZ:
+        return '🏛️ Chemnitz Only';
+      case SourceType.SACHSEN:
+        return '🏰 All Saxony';
+      default:
+        return '🏛️ Chemnitz Only';
+    }
   };
 
   return (
@@ -178,7 +153,7 @@ const Layout: React.FC<LayoutProps> = ({
           {/* Center Title */}
           <div className="header-title-container">
             <h1 className="header-title">
-              <i className="fas fa-map-marked-alt header-title-icon"></i>
+              <span style={{ marginRight: '0.5rem', fontSize: '1.5rem' }}>🔍</span>
               Chemnitz Cultural Explorer
             </h1>
           </div>
@@ -237,65 +212,85 @@ const Layout: React.FC<LayoutProps> = ({
         {/* Left Sidebar */}
         <aside className="sidebar">
           <div className="sidebar-content">
-            
+
             {/* Location Section */}
             <div className="section">
               <h3 className="section-title">
-                <i className="fas fa-map-marker-alt section-icon location"></i>
-                Location
+                <span style={{ marginRight: '0.5rem', fontSize: '1.1rem' }}>🧭</span>
+                Map Region
               </h3>
-              
-              {/* Location Dropdown */}
-              <div className="dropdown-container">
-                <button
-                  ref={locationButtonRef}
-                  onClick={() => handleDropdownToggle(setLocationDropdownOpen, locationDropdownOpen)}
-                  className="dropdown-button"
-                >
-                  <span>
-                    {filterState.source === SourceType.CHEMNITZ ? '🏛️ Chemnitz' : '🏰 Saxony'}
-                  </span>
-                  <i className={`fas fa-chevron-down dropdown-chevron ${locationDropdownOpen ? 'open' : ''}`}></i>
-                </button>
-                
-                {locationDropdownOpen && (
-                  <div 
-                    className="dropdown-menu location" 
-                    style={dropdownStyle}
+
+              <div className="checkbox-list-container">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {/* Chemnitz Toggle Button */}
+                  <button
+                    onClick={() => {
+                      console.log('📍 Switching to Chemnitz Only');
+                      onFilterUpdate({
+                        source: SourceType.CHEMNITZ,
+                        district: undefined
+                      });
+                    }}
+                    style={{
+                      padding: '12px 16px',
+                      border: `2px solid ${filterState.source === SourceType.CHEMNITZ ? '#2563eb' : '#d1d5db'}`,
+                      borderRadius: '8px',
+                      background: filterState.source === SourceType.CHEMNITZ ? '#eff6ff' : 'white',
+                      color: filterState.source === SourceType.CHEMNITZ ? '#1d4ed8' : '#374151',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: filterState.source === SourceType.CHEMNITZ ? '600' : '400',
+                      textAlign: 'left',
+                      width: '100%',
+                      transition: 'all 0.2s ease'
+                    }}
                   >
-                    <button
-                      onClick={() => {
-                        onFilterUpdate({ source: SourceType.CHEMNITZ });
-                        setLocationDropdownOpen(false);
-                      }}
-                      className={`dropdown-item ${
-                        filterState.source === SourceType.CHEMNITZ ? 'active' : 'inactive'
-                      }`}
-                    >
-                      🏛️ Chemnitz
-                    </button>
-                    <button
-                      onClick={() => {
-                        onFilterUpdate({ source: SourceType.SACHSEN, district: undefined });
-                        setLocationDropdownOpen(false);
-                      }}
-                      className={`dropdown-item ${
-                        filterState.source === SourceType.SACHSEN ? 'active' : 'inactive'
-                      }`}
-                    >
-                      🏰 Saxony
-                    </button>
-                  </div>
-                )}
+                    🏛️ Chemnitz Only
+                  </button>
+
+                  {/* Saxony Toggle Button */}
+                  <button
+                    onClick={() => {
+                      console.log('🏰 Switching to All Saxony');
+                      onFilterUpdate({
+                        source: SourceType.SACHSEN,
+                        district: undefined
+                      });
+                    }}
+                    style={{
+                      padding: '12px 16px',
+                      border: `2px solid ${filterState.source === SourceType.SACHSEN ? '#2563eb' : '#d1d5db'}`,
+                      borderRadius: '8px',
+                      background: filterState.source === SourceType.SACHSEN ? '#eff6ff' : 'white',
+                      color: filterState.source === SourceType.SACHSEN ? '#1d4ed8' : '#374151',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: filterState.source === SourceType.SACHSEN ? '600' : '400',
+                      textAlign: 'left',
+                      width: '100%',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    🏰 All Saxony
+                  </button>
+
+
+                </div>
               </div>
 
               {/* District Dropdown (only for Chemnitz) */}
               {filterState.source === SourceType.CHEMNITZ && (
                 <div className="district-container">
-                  <label className="district-label">District</label>
+                  <h3 className="section-title">
+                    <span style={{ marginRight: '0.5rem', fontSize: '1.1rem' }}>🏙️</span>
+                    District
+                  </h3>
                   <select
                     value={filterState.district || ''}
-                    onChange={(e) => onFilterUpdate({ district: e.target.value || undefined })}
+                    onChange={(e) => {
+                      console.log('🏘️ District change:', e.target.value);
+                      onFilterUpdate({ district: e.target.value || undefined });
+                    }}
                     disabled={districtsLoading}
                     className="district-select"
                   >
@@ -308,15 +303,31 @@ const Layout: React.FC<LayoutProps> = ({
                   </select>
                 </div>
               )}
+
+              {/* Show info when Saxony is selected */}
+              {filterState.source === SourceType.SACHSEN && (
+                <div className="district-container">
+                  <div style={{
+                    padding: '8px',
+                    background: '#e3f2fd',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    color: '#1565c0'
+                  }}>
+                    <i className="fas fa-info-circle" style={{ marginRight: '4px' }}></i>
+                    Showing all cultural sites across Saxony region including Chemnitz
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Filter Section */}
             <div className="section">
               <h3 className="section-title">
-                <i className="fas fa-filter section-icon filter"></i>
+                <span style={{ marginRight: '0.5rem', fontSize: '1.1rem' }}>🎪</span>
                 Cultural Sites
               </h3>
-              
+
               <div className="checkbox-list-container">
                 <div className="checkbox-list">
                   {/* All Option */}
@@ -326,28 +337,52 @@ const Layout: React.FC<LayoutProps> = ({
                       checked={!filterState.categories || filterState.categories.length === 0 || filterState.categories.length === Object.keys(CategoryType).length}
                       onChange={(e) => {
                         if (e.target.checked) {
+                          console.log('🎭 Selecting all categories');
                           onFilterUpdate({ categories: Object.values(CategoryType) });
                         } else {
+                          console.log('🎭 Deselecting all categories');
                           onFilterUpdate({ categories: [] });
                         }
                       }}
                       className="checkbox-input blue"
                     />
-                    <span className="checkbox-label bold">All</span>
+                    <span className="checkbox-label bold">
+                      <span style={{ marginRight: '8px', fontSize: '1rem' }}>✨</span>
+                      All
+                    </span>
                   </label>
-                  
-                  {/* Category Options */}
-                  {(Object.values(CategoryType) as CategoryType[]).map((category) => (
-                    <label key={category} className="checkbox-item">
-                      <input
-                        type="checkbox"
-                        checked={isCategorySelected(category)}
-                        onChange={(e) => handleCategoryChange(category, e.target.checked)}
-                        className="checkbox-input blue"
-                      />
-                      <span className="checkbox-label">{category}</span>
-                    </label>
-                  ))}
+
+                  {/* Category Options with colorful emojis */}
+                  {(Object.values(CategoryType) as CategoryType[]).map((category) => {
+                    const getCategoryIcon = (cat: CategoryType) => {
+                      switch (cat) {
+                        case CategoryType.THEATRE: return '🎭';
+                        case CategoryType.MUSEUM: return '🏺';
+                        case CategoryType.RESTAURANT: return '🍽️';
+                        case CategoryType.ARTWORK: return '🎨';
+                        default: return '📍';
+                      }
+                    };
+
+                    const getCategoryName = (cat: CategoryType) => {
+                      return cat.charAt(0).toUpperCase() + cat.slice(1);
+                    };
+
+                    return (
+                      <label key={category} className="checkbox-item">
+                        <input
+                          type="checkbox"
+                          checked={isCategorySelected(category)}
+                          onChange={(e) => handleCategoryChange(category, e.target.checked)}
+                          className="checkbox-input blue"
+                        />
+                        <span className="checkbox-label">
+                          <span style={{ marginRight: '8px', fontSize: '1rem' }}>{getCategoryIcon(category)}</span>
+                          {getCategoryName(category)}
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -355,10 +390,10 @@ const Layout: React.FC<LayoutProps> = ({
             {/* Parking Section */}
             <div className="section">
               <h3 className="section-title">
-                <i className="fas fa-parking section-icon parking"></i>
+                <span style={{ marginRight: '0.5rem', fontSize: '1.1rem' }}>🅿️</span>
                 Parking Options
               </h3>
-              
+
               <div className="checkbox-list-container">
                 <div className="checkbox-list">
                   {(Object.values(ParkingType) as ParkingType[]).map((parkingType) => (
@@ -370,7 +405,10 @@ const Layout: React.FC<LayoutProps> = ({
                         className="checkbox-input purple"
                       />
                       <span className="checkbox-label">
-                        {parkingType === ParkingType.BUS ? '🚌 Bus' : '🚐 Caravan'}
+                        <span style={{ marginRight: '8px', fontSize: '1rem' }}>
+                          {parkingType === ParkingType.BUS ? '🚌' : '🚐'}
+                        </span>
+                        {parkingType === ParkingType.BUS ? 'Bus' : 'Caravan'}
                       </span>
                     </label>
                   ))}

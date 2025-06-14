@@ -1,18 +1,19 @@
-/* MapContainer.css */
+/* MapContainer.css - COMPLETE FIXED VERSION */
 
-/* Main container - ensures full viewport height */
+/* Main container - FIXED: Perfect viewport fitting */
 .map-container {
   position: relative;
   width: 100%;
-  height: 100vh; /* Full viewport height */
+  height: 100%;
   background: white;
+  overflow: hidden;
 }
 
 /* Map element - fills container */
 .map-element {
   width: 100%;
   height: 100%;
-  min-height: 600px;
+  min-height: 500px;
   background: #f8fafc;
 }
 
@@ -128,11 +129,7 @@
   background: #b91c1c;
 }
 
-/* Custom marker styles */
-.custom-marker {
-  /* Base marker styles are handled inline for dynamic colors */
-}
-
+/* Marker styles */
 .marker-icon {
   background: linear-gradient(135deg, var(--marker-color) 0%, var(--marker-color-fade) 100%);
   width: 28px;
@@ -363,18 +360,19 @@
   line-height: 1.4;
 }
 
-/* Map controls and overlays */
+/* Map controls - FIXED: Better positioning */
 .map-controls-info {
   position: absolute;
   bottom: 1rem;
   left: 1rem;
   background: rgba(0, 0, 0, 0.85);
   color: white;
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 0.5rem;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   z-index: 1000;
   backdrop-filter: blur(4px);
+  max-width: calc(100vw - 20rem);
 }
 
 .map-controls-content {
@@ -387,6 +385,7 @@
   color: #60a5fa;
 }
 
+/* Map stats - FIXED: Compact positioning */
 .map-stats {
   position: absolute;
   top: 1rem;
@@ -394,8 +393,8 @@
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(4px);
   border-radius: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.75rem;
+  padding: 0.5rem;
+  font-size: 0.7rem;
   color: #4b5563;
   z-index: 1000;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -466,19 +465,31 @@
   color: #6b7280;
 }
 
-/* Legend styles */
+/* Legend styles - FIXED: Always visible, responsive */
 .legend-container {
   position: absolute;
-  bottom: 1.5rem;
-  right: 1.5rem;
+  bottom: 1rem;
+  right: 1rem;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(4px);
-  padding: 1rem;
+  padding: 0.75rem;
   border-radius: 0.75rem;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(229, 231, 235, 0.5);
   z-index: 1000;
-  max-width: 18rem;
+  max-width: 16rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+/* Hide legend scrollbar */
+.legend-container::-webkit-scrollbar {
+  display: none;
+}
+
+.legend-container {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .legend-header {
@@ -574,13 +585,16 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
 }
 
 @keyframes ping {
-  75%, 100% {
+
+  75%,
+  100% {
     transform: scale(2);
     opacity: 0;
   }
@@ -593,13 +607,13 @@
     right: 1rem;
     max-width: 16rem;
   }
-  
+
   .map-stats {
     top: 0.5rem;
     right: 0.5rem;
     font-size: 0.625rem;
   }
-  
+
   .map-controls-info {
     bottom: 0.5rem;
     left: 0.5rem;
@@ -611,4 +625,143 @@
 .leaflet-container {
   width: 100% !important;
   height: 100% !important;
+}
+
+/* RESPONSIVE MAP ELEMENTS - UPDATED */
+@media (max-width: 1200px) {
+  .legend-container {
+    max-width: 14rem;
+    padding: 0.6rem;
+    bottom: 0.75rem;
+    right: 0.75rem;
+  }
+
+  .legend-title {
+    font-size: 0.75rem;
+  }
+
+  .legend-item-text {
+    font-size: 0.7rem;
+  }
+
+  .map-stats {
+    font-size: 0.65rem;
+    padding: 0.4rem;
+  }
+
+  .map-controls-info {
+    font-size: 0.65rem;
+    padding: 0.4rem 0.6rem;
+    max-width: calc(100vw - 16rem);
+  }
+}
+
+@media (max-width: 1000px) {
+  .legend-container {
+    max-width: 12rem;
+    padding: 0.5rem;
+    bottom: 0.5rem;
+    right: 0.5rem;
+  }
+
+  .legend-title {
+    font-size: 0.7rem;
+  }
+
+  .legend-section-title {
+    font-size: 0.65rem;
+  }
+
+  .legend-item-text {
+    font-size: 0.65rem;
+  }
+
+  .map-stats {
+    font-size: 0.6rem;
+    padding: 0.35rem;
+  }
+
+  .map-controls-info {
+    font-size: 0.6rem;
+    padding: 0.35rem 0.5rem;
+    max-width: calc(100vw - 14rem);
+  }
+}
+
+@media (max-width: 768px) {
+  .legend-container {
+    max-width: 10rem;
+    padding: 0.4rem;
+    bottom: 0.5rem;
+    right: 0.5rem;
+    max-height: 50vh;
+  }
+
+  .legend-title {
+    font-size: 0.65rem;
+  }
+
+  .legend-section-title {
+    font-size: 0.6rem;
+  }
+
+  .legend-item-text {
+    font-size: 0.6rem;
+  }
+
+  .map-stats {
+    font-size: 0.55rem;
+    padding: 0.3rem;
+    top: 0.5rem;
+    right: 0.5rem;
+  }
+
+  .map-controls-info {
+    font-size: 0.55rem;
+    padding: 0.3rem 0.4rem;
+    bottom: 0.5rem;
+    left: 0.5rem;
+    max-width: calc(100vw - 12rem);
+  }
+}
+
+@media (max-width: 480px) {
+  .legend-container {
+    max-width: 8rem;
+    padding: 0.3rem;
+    bottom: 0.25rem;
+    right: 0.25rem;
+    max-height: 40vh;
+  }
+
+  .legend-title {
+    font-size: 0.6rem;
+  }
+
+  .legend-section-title {
+    font-size: 0.55rem;
+  }
+
+  .legend-item-text {
+    font-size: 0.55rem;
+  }
+
+  .map-stats {
+    font-size: 0.5rem;
+    padding: 0.25rem;
+  }
+
+  .map-controls-info {
+    font-size: 0.5rem;
+    padding: 0.25rem 0.35rem;
+    max-width: calc(100vw - 10rem);
+  }
+
+  .map-controls-info span {
+    display: none;
+  }
+
+  .map-controls-info::after {
+    content: "Interactive Map";
+  }
 }

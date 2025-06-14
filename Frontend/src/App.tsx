@@ -1,3 +1,4 @@
+// App.tsx - FIXED VERSION
 import React, { useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
@@ -11,9 +12,6 @@ import MapContainer from './components/Map/MapContainer';
 import { useAuth } from './hooks/useAuth';
 import { Auth } from './components/Auth/Auth';
 
-// Import debug component (create this file)
-// import AuthDebug from './components/Auth/AuthDebug';
-
 import {
   FilterState,
   SourceType,
@@ -26,14 +24,14 @@ import {
   useMapData
 } from './hooks/useApi';
 
-// Your existing main app component with new layout
+// Your existing main app component with FIXED filtering
 const MainApp: React.FC = () => {
   const [filterState, setFilterState] = useState<FilterState>({
     search: '',
-    source: SourceType.CHEMNITZ,
+    source: SourceType.CHEMNITZ, // Start with Chemnitz
     district: undefined,
-    categories: Object.values(CategoryType), // New multi-select categories
-    parkingTypes: [ParkingType.BUS, ParkingType.CARAVAN], // Show all parking by default
+    categories: Object.values(CategoryType), // ALL categories selected by default
+    parkingTypes: [], 
     mapLayers: {
       showParking: true,
       showDistricts: true,
@@ -42,7 +40,12 @@ const MainApp: React.FC = () => {
   });
 
   const onFilterUpdate = (updates: Partial<FilterState>) => {
-    setFilterState((prev) => ({ ...prev, ...updates }));
+    console.log('🔄 Filter Update:', updates);
+    setFilterState((prev) => {
+      const newState = { ...prev, ...updates };
+      console.log('📊 New Filter State:', newState);
+      return newState;
+    });
   };
 
   // API hooks - only destructure what we actually use
@@ -51,6 +54,7 @@ const MainApp: React.FC = () => {
     loading: districtsLoading
   } = useDistrictNames();
 
+  // FIXED: Pass ALL filter parameters to useMapData
   const {
     sites,
     parking,
@@ -60,16 +64,24 @@ const MainApp: React.FC = () => {
   } = useMapData({
     source: filterState.source,
     district: filterState.district,
-    categories: filterState.categories,
-    includeParking: filterState.mapLayers.showParking,
+    categories: filterState.categories, // Pass selected categories
+    parkingTypes: filterState.parkingTypes, // Pass selected parking types
+    includeParking: filterState.mapLayers.showParking && filterState.parkingTypes && filterState.parkingTypes.length > 0,
     includeDistricts: filterState.mapLayers.showDistricts,
+    limit: 2000, // INCREASED LIMIT - get more data
     includeChemnitzWhenSaxony: filterState.source === SourceType.SACHSEN
   });
 
-  // Filter parking based on selected types
-  const filteredParking = filterState.parkingTypes && filterState.parkingTypes.length > 0
-    ? parking.filter(p => filterState.parkingTypes!.includes(p.parking_type))
-    : parking;
+  // Log what we're actually getting
+  console.log('📊 App Debug:', {
+    filterState,
+    dataLoaded: {
+      sites: sites.length,
+      parking: parking.length,
+      districts: districts.length
+    },
+    loading: loadingState.sites
+  });
 
   return (
     <Layout
@@ -79,8 +91,8 @@ const MainApp: React.FC = () => {
       districtsLoading={districtsLoading}
     >
       <MapContainer
-        culturalSites={sites}
-        parkingLots={filteredParking}
+        culturalSites={sites} // These should now be properly filtered
+        parkingLots={parking} // These should now be properly filtered
         districts={districts}
         loading={loadingState.sites}
         selectedDistrict={filterState.district}
@@ -168,8 +180,6 @@ const App: React.FC = () => {
   console.log('🗺️ App: User authenticated, showing map interface for:', user?.email);
   return (
     <div key={`${appKey}-main`}>
-      {/* Uncomment this line if you create the AuthDebug component */}
-      {/* <AuthDebug /> */}
       <MainApp />
     </div>
   );

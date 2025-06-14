@@ -1,3 +1,4 @@
+// hooks/useApi.ts - FIXED VERSION
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiService, performanceUtils } from '../services/api';
@@ -7,9 +8,10 @@ import {
   District, 
   SearchParams, 
   NearbyParams, 
-  LoadingState 
+  LoadingState,
+  CategoryType,
+  ParkingType 
 } from '../types';
-
 
 interface UseApiState<T> {
   data: T | null;
@@ -32,7 +34,6 @@ export function useApi<T>(
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchData = useCallback(async () => {
-    // Cancel previous request if still pending
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -115,10 +116,9 @@ export function useCulturalSites(params?: SearchParams) {
 
 // Cultural sites hook that defaults to Chemnitz for performance
 export function useSmartCulturalSites(params?: SearchParams) {
-  // Default to Chemnitz if no source specified
   const smartParams = {
     source: 'chemnitz_geojson',
-    limit: 100,
+    limit: 1000, // INCREASED LIMIT
     ...params
   };
 
@@ -143,7 +143,7 @@ export function useDistrictNames() {
   return useApi(() => apiService.getDistrictNames(), [], true);
 }
 
-//  Full districts hook for map boundaries
+// Full districts hook for map boundaries
 export function useDistricts() {
   return useApi(() => apiService.getDistricts());
 }
@@ -171,7 +171,6 @@ export function useSearch() {
   const debounceTimeoutRef = useRef<number | null>(null);
 
   const search = useCallback(async (query: string, category?: string, district?: string) => {
-    // Clear previous timeout
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
     }
@@ -181,7 +180,6 @@ export function useSearch() {
       return;
     }
 
-    // Debounce search
     debounceTimeoutRef.current = window.setTimeout(async () => {
       setLoading(true);
       setError(null);
@@ -216,12 +214,13 @@ export function useSearch() {
   };
 }
 
-//  Combined map data hook for optimal performance
+// FIXED: Combined map data hook for optimal performance
 export function useMapData(options: {
   source?: string;
   district?: string;
   category?: string;
-  categories?: string[];
+  categories?: CategoryType[];
+  parkingTypes?: ParkingType[];
   includeParking?: boolean;
   includeDistricts?: boolean;
   limit?: number;
@@ -247,6 +246,8 @@ export function useMapData(options: {
   const [error, setError] = useState<string | null>(null);
 
   const fetchMapData = useCallback(async () => {
+    console.log('🔄 useMapData: Starting fetch with options:', options);
+    
     setLoadingState({
       sites: true,
       parking: options.includeParking || false,
@@ -258,36 +259,79 @@ export function useMapData(options: {
     const startTime = performanceUtils.startTimer();
 
     try {
-      let finalResult;
+      let allSites: CulturalSite[] = [];
+      let allParking: ParkingLot[] = [];
+      let allDistricts: District[] = [];
 
-    if (options.source === 'sachsen_geojson') {
-      // Fetch both Sachsen and Chemnitz data
-      const [sachsenData, chemnitzData] = await Promise.all([
-        apiService.getMapData({ ...options, source: 'sachsen_geojson' }),
-        apiService.getMapData({ ...options, source: 'chemnitz_geojson' }),
-      ]);
+      // FIXED: Handle different source options properly
+      if (options.source === 'sachsen_geojson') {
+        console.log('📍 Fetching Sachsen + Chemnitz data...');
+        
+        // Fetch both Sachsen and Chemnitz data
+        const [sachsenData, chemnitzData] = await Promise.all([
+          apiService.getMapData({ 
+            ...options, 
+            source: 'sachsen_geojson',
+            limit: options.limit || 2000 // Higher limit for Saxony
+          }),
+          apiService.getMapData({ 
+            ...options, 
+            source: 'chemnitz_geojson',
+            limit: options.limit || 1000
+          })
+        ]);
 
-      // Merge cultural sites and parking from both sources
-      finalResult = {
-        sites: [...sachsenData.sites, ...chemnitzData.sites],
-        parking: [...sachsenData.parking, ...chemnitzData.parking],
-        districts: [...sachsenData.districts, ...chemnitzData.districts],
-      };
-    } else {
-      // Default to single source fetch
-      finalResult = await apiService.getMapData(options);
-    }
+        allSites = [...sachsenData.sites, ...chemnitzData.sites];
+        allParking = [...sachsenData.parking, ...chemnitzData.parking];
+        allDistricts = [...sachsenData.districts, ...chemnitzData.districts];
+        
+      } else {
+        console.log(`📍 Fetching ${options.source || 'all'} data...`);
+        
+        // Single source fetch with higher limit
+        const result = await apiService.getMapData({
+          ...options,
+          limit: options.limit || 1000 // Higher default limit
+        });
+        
+        allSites = result.sites;
+        allParking = result.parking;
+        allDistricts = result.districts;
+      }
 
-setData(finalResult);
+      // FIXED: Apply category filtering on frontend (in case backend doesn't filter properly)
+      if (options.categories && options.categories.length > 0 && options.categories.length < Object.values(CategoryType).length) {
+        console.log('🎭 Filtering sites by categories:', options.categories);
+        allSites = allSites.filter(site => options.categories!.includes(site.category));
+      }
+
+      // FIXED: Apply parking type filtering on frontend
+      if (options.parkingTypes && options.parkingTypes.length > 0 && options.parkingTypes.length < Object.values(ParkingType).length) {
+        console.log('🚗 Filtering parking by types:', options.parkingTypes);
+        allParking = allParking.filter(parking => options.parkingTypes!.includes(parking.parking_type));
+      }
+
+      console.log('✅ Data loaded:', {
+        sites: allSites.length,
+        parking: allParking.length,
+        districts: allDistricts.length
+      });
+
+      setData({
+        sites: allSites,
+        parking: allParking,
+        districts: allDistricts
+      });
       
       const duration = performanceUtils.endTimer(startTime);
       performanceUtils.logPerformance(
         'Map Data Load', 
         duration, 
-        JSON.stringify(finalResult).length
+        JSON.stringify({ sites: allSites.length, parking: allParking.length }).length
       );
       
     } catch (err: any) {
+      console.error('❌ Map data fetch error:', err);
       setError(err.message || 'Failed to load map data');
     } finally {
       setLoadingState({
@@ -358,7 +402,7 @@ export function useGeolocation() {
   };
 }
 
-//  Performance monitoring hook
+// Performance monitoring hook
 export function usePerformanceMonitoring() {
   const [metrics, setMetrics] = useState({
     loadTime: 0,
