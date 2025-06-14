@@ -4,7 +4,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import './MapContainer.css'; 
+import './MapContainer.css';
 import {
   CulturalSite,
   ParkingLot,
@@ -30,7 +30,14 @@ interface MapContainerProps {
   loading: boolean;
   selectedDistrict?: string;
   mapError?: string | null;
-   focusedSiteId?: string; //
+  focusedSiteId?: string;
+  // NEW: Add these props for parking connections
+  parkingConnections?: Array<{
+    siteId: string;
+    parkingId: string;
+    distance: number;
+  }>;
+  showNearbyParking?: boolean;
 }
 
 const MapContainer: React.FC<MapContainerProps> = ({
@@ -40,14 +47,19 @@ const MapContainer: React.FC<MapContainerProps> = ({
   loading,
   selectedDistrict,
   mapError,
-  focusedSiteId
+  focusedSiteId,
+  // NEW: Add these props
+  parkingConnections,
+  showNearbyParking
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const districtsLayerRef = useRef<L.LayerGroup | null>(null);
+  const connectionsLayerRef = useRef<L.LayerGroup | null>(null); // NEW: Add connections layer
   const [mapReady, setMapReady] = useState(false);
-    useEffect(() => {
+
+  useEffect(() => {
     if (focusedSiteId) {
       // Find the site and focus on it
       const site = culturalSites.find(s => s.id === focusedSiteId);
@@ -145,7 +157,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
     });
 
     // Add custom zoom control in top-right
-    L.control.zoom({ 
+    L.control.zoom({
       position: 'topright',
       zoomInTitle: 'Zoom in',
       zoomOutTitle: 'Zoom out'
@@ -159,14 +171,16 @@ const MapContainer: React.FC<MapContainerProps> = ({
       crossOrigin: true
     }).addTo(map);
 
-    // Create layers group for markers and districts
+    // Create layers group for markers, districts, and connections
     const markersLayer = L.layerGroup().addTo(map);
     const districtsLayer = L.layerGroup().addTo(map);
+    const connectionsLayer = L.layerGroup().addTo(map); // NEW: Add connections layer
 
     // Store references
     mapInstanceRef.current = map;
     markersLayerRef.current = markersLayer;
     districtsLayerRef.current = districtsLayer;
+    connectionsLayerRef.current = connectionsLayer; // NEW: Store connections layer reference
     setMapReady(true);
 
     console.log('✅ Map initialized successfully');
@@ -179,6 +193,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
         mapInstanceRef.current = null;
         markersLayerRef.current = null;
         districtsLayerRef.current = null;
+        connectionsLayerRef.current = null; // NEW: Clean up connections layer
         setMapReady(false);
       }
     };
@@ -198,37 +213,60 @@ const MapContainer: React.FC<MapContainerProps> = ({
         try {
           if (district.geometry) {
             // Determine if this is the selected district
-            const isSelected = selectedDistrict && (
+            const isSelected = selectedDistrict && selectedDistrict !== '' && (
+              selectedDistrict === 'all' ||
               district.properties?.STADTTNAME === selectedDistrict ||
               district.name === selectedDistrict
             );
 
             // Enhanced styles for selected vs all districts
-            const style = isSelected
-              ? {
-                  // Selected district - more prominent
-                  color: '#1d4ed8',
-                  weight: 4,
-                  opacity: 1,
-                  fillColor: '#3b82f6',
-                  fillOpacity: 0.25,
-                  dashArray: '0', // Solid line
-                  lineJoin: 'round' as const,
-                  lineCap: 'round' as const
-                }
-              : {
-                  // All districts view - subtle
-                  color: '#6366f1',
-                  weight: 2,
-                  opacity: 0.7,
-                  fillColor: '#6366f1',
-                  fillOpacity: 0.08,
-                  dashArray: '5, 5', // Dashed line
-                  lineJoin: 'round' as const,
-                  lineCap: 'round' as const
-                };
+            let style;
 
-            const geoJsonLayer = L.geoJSON(district.geometry, { 
+            // SCENARIO 1: No district selected - Main boundary only
+            if (!selectedDistrict || selectedDistrict === '') {
+              style = {
+                color: '#2563eb', // Blue color
+                weight: 3, // Medium weight
+                opacity: 1,
+                fillColor: 'transparent', // No fill
+                fillOpacity: 0,
+                dashArray: '0', // Solid line
+                lineJoin: 'round' as const,
+                lineCap: 'round' as const
+              };
+            }
+            // SCENARIO 2: All districts selected - Dotted lines
+            else if (selectedDistrict === 'all') {
+              style = {
+                color: '#6366f1',
+                weight: 2,
+                opacity: 0.7,
+                fillColor: '#6366f1',
+                fillOpacity: 0.08,
+                dashArray: '8, 8', // Dotted lines
+                lineJoin: 'round' as const,
+                lineCap: 'round' as const
+              };
+            }
+            // SCENARIO 3: Specific district selected - Solid line
+            else if (isSelected) {
+              style = {
+                color: '#1d4ed8',
+                weight: 4,
+                opacity: 1,
+                fillColor: '#3b82f6',
+                fillOpacity: 0.25,
+                dashArray: '0', // Solid line
+                lineJoin: 'round' as const,
+                lineCap: 'round' as const
+              };
+            }
+            // SCENARIO 4: Other districts when one is selected - Hidden
+            else {
+              return; // Skip rendering this district
+            }
+
+            const geoJsonLayer = L.geoJSON(district.geometry, {
               style,
               onEachFeature: (_feature, layer) => {
                 // Add hover effects
@@ -253,7 +291,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
             const districtName = district.properties?.STADTTNAME || district.name || `District ${index + 1}`;
             const districtColor = isSelected ? '#1d4ed8' : '#6366f1';
             const districtColorSecondary = isSelected ? '#3b82f6' : '#8b5cf6';
-            
+
             const popupContent = `
               <div class="district-popup-container">
                 <div class="district-popup-header" style="
@@ -287,7 +325,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
           console.error('❌ Error adding district boundary:', error, district);
         }
       });
-      
+
       console.log('✅ District boundaries added successfully');
     }
   }, [districts, mapReady, selectedDistrict]);
@@ -319,7 +357,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
         }
 
         const [lat, lng] = geoUtils.mongoLocationToLeaflet(site.location);
-        
+
         // Validate coordinates
         if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
           console.warn('⚠️ Invalid coordinates for site:', site.name, { lat, lng });
@@ -415,7 +453,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
         }
 
         const [lat, lng] = geoUtils.mongoLocationToLeaflet(parking.location);
-        
+
         // Validate coordinates
         if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
           console.warn('⚠️ Invalid coordinates for parking:', parking.name, { lat, lng });
@@ -504,7 +542,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
     if (addedSites > 0 || addedParking > 0) {
       try {
         const allLayers = [...markersLayerRef.current.getLayers()];
-        
+
         // Include district boundaries in bounds calculation
         if (districts.length > 0 && districtsLayerRef.current) {
           allLayers.push(...(districtsLayerRef.current.getLayers() as L.Layer[]));
@@ -513,7 +551,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
         if (allLayers.length > 0) {
           const group = L.featureGroup(allLayers);
           const bounds = group.getBounds();
-          
+
           if (bounds.isValid()) {
             mapInstanceRef.current!.fitBounds(bounds, {
               padding: [30, 30],
@@ -532,6 +570,61 @@ const MapContainer: React.FC<MapContainerProps> = ({
     }
 
   }, [culturalSites, parkingLots, mapReady, districts]);
+
+  // NEW: Add connections effect for parking lines
+  useEffect(() => {
+    if (!mapReady || !connectionsLayerRef.current) {
+      return;
+    }
+
+    // Always clear existing connections first
+    connectionsLayerRef.current.clearLayers();
+
+    // Only add connections if we're showing nearby parking and have connections
+    if (!showNearbyParking || !parkingConnections || parkingConnections.length === 0) {
+      return;
+    }
+
+    console.log('🔗 Adding parking connections...', parkingConnections.length);
+
+    parkingConnections.forEach(connection => {
+      try {
+        // Find the cultural site and parking lot
+        const site = culturalSites.find(s => s.id === connection.siteId);
+        const parking = parkingLots.find(p => p.id === connection.parkingId);
+
+        if (site?.location?.coordinates && parking?.location?.coordinates) {
+          const siteCoords = geoUtils.mongoLocationToLeaflet(site.location);
+          const parkingCoords = geoUtils.mongoLocationToLeaflet(parking.location);
+
+          // Create thin line connection
+          const connectionLine = L.polyline([siteCoords, parkingCoords], {
+            color: '#10b981',
+            weight: 2,
+            opacity: 0.6,
+            dashArray: '5, 5',
+            interactive: false // Don't interfere with marker clicks
+          });
+
+          // Add distance tooltip on hover
+          connectionLine.bindTooltip(
+            `${Math.round(connection.distance)}m to parking`,
+            {
+              permanent: false,
+              direction: 'center',
+              className: 'connection-tooltip'
+            }
+          );
+
+          connectionsLayerRef.current!.addLayer(connectionLine);
+        }
+      } catch (error) {
+        console.error('Error adding connection line:', error);
+      }
+    });
+
+    console.log('✅ Parking connections added');
+  }, [mapReady, parkingConnections, culturalSites, parkingLots, showNearbyParking]);
 
   return (
     <div className="map-container">
@@ -559,7 +652,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
             <div className="error-body">
               <h4 className="error-title">Map Loading Error</h4>
               <p className="error-text">{mapError}</p>
-              <button 
+              <button
                 onClick={() => window.location.reload()}
                 className="error-retry-btn"
               >
@@ -574,10 +667,13 @@ const MapContainer: React.FC<MapContainerProps> = ({
       <div ref={mapRef} className="map-element" />
 
       {/* Map Legend Component */}
-      <MapLegend 
+      <MapLegend
         culturalSites={culturalSites}
         parkingLots={parkingLots}
         districts={districts}
+        // NEW: Add these props for nearby parking
+        showNearbyParking={showNearbyParking}
+        isNearbyParking={showNearbyParking && parkingLots.length > 0}
       />
 
       {/* Map Controls Info */}

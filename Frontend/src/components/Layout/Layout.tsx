@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// components/Layout/Layout.tsx - FIXED VERSION WITH SAXONY DROPDOWN
+// components/Layout/Layout.tsx - UPDATED WITH SEARCH
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import SearchBar from '../SearchBar/SearchBar';
 import {
   FilterState,
   SourceType,
@@ -17,6 +18,13 @@ interface LayoutProps {
   onFilterUpdate: (updates: Partial<FilterState>) => void;
   districtNames?: Array<{ id: string; name: string }>;
   districtsLoading?: boolean;
+  // NEW: Search props
+  onSearch?: (query: string) => void;
+  onSearchSuggestionSelect?: (suggestion: any) => void;
+  onClearSearch?: () => void;
+  isSearching?: boolean;
+  searchQuery?: string;
+  isSearchActive?: boolean;
 }
 
 const Layout: React.FC<LayoutProps> = ({
@@ -24,7 +32,14 @@ const Layout: React.FC<LayoutProps> = ({
   filterState,
   onFilterUpdate,
   districtNames = [],
-  districtsLoading = false
+  districtsLoading = false,
+  // NEW: Search props with defaults
+  onSearch = () => { },
+  onSearchSuggestionSelect = () => { },
+  onClearSearch = () => { },
+  isSearching = false,
+  isSearchActive = false,
+  searchQuery = ""
 }) => {
   const { user, logout } = useAuth();
 
@@ -213,6 +228,23 @@ const Layout: React.FC<LayoutProps> = ({
         <aside className="sidebar">
           <div className="sidebar-content">
 
+            {/* NEW: Search Section */}
+            <div className="section">
+              <h3 className="section-title">
+                <span style={{ marginRight: '0.5rem', fontSize: '1.1rem' }}>🔍</span>
+                Search
+              </h3>
+
+              <SearchBar
+                onSearch={onSearch}
+                onSuggestionSelect={onSearchSuggestionSelect}
+                onClearSearch={onClearSearch}
+                isSearching={isSearching}
+                currentQuery={searchQuery}
+                placeholder="Search cultural sites..."
+              />
+            </div>
+
             {/* Location Section */}
             <div className="section">
               <h3 className="section-title">
@@ -273,8 +305,6 @@ const Layout: React.FC<LayoutProps> = ({
                   >
                     🏰 All Saxony
                   </button>
-
-
                 </div>
               </div>
 
@@ -294,7 +324,8 @@ const Layout: React.FC<LayoutProps> = ({
                     disabled={districtsLoading}
                     className="district-select"
                   >
-                    <option value="">All Districts</option>
+                    <option value="">No district selected</option>
+                    <option value="all">All Districts</option>
                     {districtNames.map((district) => (
                       <option key={district.id} value={district.name}>
                         {district.name}
@@ -387,34 +418,78 @@ const Layout: React.FC<LayoutProps> = ({
               </div>
             </div>
 
-            {/* Parking Section */}
-            <div className="section">
-              <h3 className="section-title">
-                <span style={{ marginRight: '0.5rem', fontSize: '1.1rem' }}>🅿️</span>
-                Parking Options
-              </h3>
+            {/* Parking Section - Only show for Chemnitz and when not searching */}
+            {filterState.source === SourceType.CHEMNITZ && !isSearchActive && (
+              <div className="section">
+                <h3 className="section-title">
+                  <span style={{ marginRight: '0.5rem', fontSize: '1.1rem' }}>🅿️</span>
+                  Parking Options
+                </h3>
 
-              <div className="checkbox-list-container">
-                <div className="checkbox-list">
-                  {(Object.values(ParkingType) as ParkingType[]).map((parkingType) => (
-                    <label key={parkingType} className="checkbox-item">
-                      <input
-                        type="checkbox"
-                        checked={isParkingSelected(parkingType)}
-                        onChange={(e) => handleParkingChange(parkingType, e.target.checked)}
-                        className="checkbox-input purple"
-                      />
-                      <span className="checkbox-label">
-                        <span style={{ marginRight: '8px', fontSize: '1rem' }}>
-                          {parkingType === ParkingType.BUS ? '🚌' : '🚐'}
+                <div className="checkbox-list-container">
+                  <div className="checkbox-list">
+                    {(Object.values(ParkingType) as ParkingType[]).map((parkingType) => (
+                      <label key={parkingType} className="checkbox-item">
+                        <input
+                          type="checkbox"
+                          checked={isParkingSelected(parkingType)}
+                          onChange={(e) => handleParkingChange(parkingType, e.target.checked)}
+                          className="checkbox-input purple"
+                        />
+                        <span className="checkbox-label">
+                          <span style={{ marginRight: '8px', fontSize: '1rem' }}>
+                            {parkingType === ParkingType.BUS ? '🚌' : '🚐'}
+                          </span>
+                          {parkingType === ParkingType.BUS ? 'Bus' : 'Caravan'}
                         </span>
-                        {parkingType === ParkingType.BUS ? 'Bus' : 'Caravan'}
-                      </span>
-                    </label>
-                  ))}
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Show message when Saxony is selected */}
+            {filterState.source === SourceType.SACHSEN && (
+              <div className="section">
+                <h3 className="section-title">
+                  <span style={{ marginRight: '0.5rem', fontSize: '1.1rem' }}>🅿️</span>
+                  Parking Options
+                </h3>
+                <div style={{
+                  padding: '12px',
+                  background: '#fef3c7',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  color: '#92400e',
+                  border: '1px solid #fcd34d'
+                }}>
+                  <i className="fas fa-info-circle" style={{ marginRight: '8px' }}></i>
+                  No parking data available for Saxony region
+                </div>
+              </div>
+            )}
+
+            {/* Show message when searching */}
+            {isSearchActive && (
+              <div className="section">
+                <h3 className="section-title">
+                  <span style={{ marginRight: '0.5rem', fontSize: '1.1rem' }}>🅿️</span>
+                  Parking Options
+                </h3>
+                <div style={{
+                  padding: '12px',
+                  background: '#e0f2fe',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  color: '#0277bd',
+                  border: '1px solid #4fc3f7'
+                }}>
+                  <i className="fas fa-search" style={{ marginRight: '8px' }}></i>
+                  Use "Show Nearby Parking" button for search results
+                </div>
+              </div>
+            )}
 
           </div>
         </aside>

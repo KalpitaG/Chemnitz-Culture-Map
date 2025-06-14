@@ -224,7 +224,7 @@ export function useMapData(options: {
   includeParking?: boolean;
   includeDistricts?: boolean;
   limit?: number;
-  includeChemnitzWhenSaxony?: boolean;
+  includeChemnitzWhenSaxony?: boolean
 } = {}) {
   const [data, setData] = useState<{
     sites: CulturalSite[];
@@ -240,7 +240,7 @@ export function useMapData(options: {
     sites: true,
     parking: false,
     districts: false,
-    search: false
+    search: false,
   });
   
   const [error, setError] = useState<string | null>(null);
@@ -431,5 +431,191 @@ export function usePerformanceMonitoring() {
     metrics,
     startMeasurement,
     endMeasurement
+  };
+}
+
+
+// Enhanced search hook with advanced search integration
+export function useAdvancedSearch() {
+  const [searchResults, setSearchResults] = useState<CulturalSite[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchStats, setSearchStats] = useState<{
+    total: number;
+    total_matches: number;
+    has_more: boolean;
+  }>({
+    total: 0,
+    total_matches: 0,
+    has_more: false
+  });
+
+  const performSearch = useCallback(async (params: {
+    query?: string;
+    category?: CategoryType;
+    categories?: CategoryType[];
+    district?: string;
+    source?: string;
+    sort_by?: string;
+    sort_order?: string;
+    limit?: number;
+  }) => {
+    console.log('🔍 Starting advanced search with params:', params);
+    
+    setIsSearching(true);
+    setSearchError(null);
+
+    try {
+      // Convert multi-category selection to single category for backend
+      let categoryParam = params.category;
+      if (params.categories && params.categories.length === 1) {
+        categoryParam = params.categories[0];
+      }
+
+      const searchParams = {
+        q: params.query,
+        category: categoryParam,
+        district: params.district,
+        source: params.source,
+        sort_by: params.sort_by || 'name',
+        sort_order: params.sort_order || 'asc',
+        limit: params.limit || 100
+      };
+
+      const response = await apiService.advancedSearch(searchParams);
+      
+      let filteredResults = response.sites;
+
+      // Frontend filtering for multi-category selection
+      if (params.categories && params.categories.length > 1) {
+        filteredResults = response.sites.filter(site => 
+          params.categories!.includes(site.category)
+        );
+      }
+
+      setSearchResults(filteredResults);
+      setSearchStats({
+        total: filteredResults.length,
+        total_matches: response.total_matches,
+        has_more: response.pagination.has_more
+      });
+      setSearchQuery(params.query || '');
+
+      console.log('✅ Search completed:', {
+        query: params.query,
+        results: filteredResults.length,
+        total_matches: response.total_matches
+      });
+
+    } catch (error: any) {
+      console.error('❌ Search failed:', error);
+      setSearchError(error.message || 'Search failed');
+      setSearchResults([]);
+      setSearchStats({ total: 0, total_matches: 0, has_more: false });
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  const clearSearch = useCallback(() => {
+    console.log('🧹 Clearing search results');
+    setSearchResults([]);
+    setSearchError(null);
+    setSearchQuery('');
+    setSearchStats({ total: 0, total_matches: 0, has_more: false });
+    setIsSearching(false);
+  }, []);
+
+  const searchByQuery = useCallback((query: string, additionalParams?: any) => {
+    if (!query.trim()) {
+      clearSearch();
+      return;
+    }
+    
+    performSearch({
+      query: query.trim(),
+      ...additionalParams
+    });
+  }, [performSearch, clearSearch]);
+
+  return {
+    // State
+    searchResults,
+    isSearching,
+    searchError,
+    searchQuery,
+    searchStats,
+    
+    // Actions
+    performSearch,
+    clearSearch,
+    searchByQuery,
+    
+    // Computed
+    hasSearchResults: searchResults.length > 0,
+    isSearchActive: !!searchQuery
+  };
+}
+
+// NEW: Hook for nearby parking search
+export function useNearbyParking() {
+  const [nearbyParking, setNearbyParking] = useState<{
+    parkingLots: ParkingLot[];
+    connections: Array<{
+      siteId: string;
+      parkingId: string;
+      distance: number;
+    }>;
+  }>({
+    parkingLots: [],
+    connections: []
+  });
+  
+  const [isSearching, setIsSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const searchNearbyParking = useCallback(async (
+    culturalSites: CulturalSite[],
+    parkingTypes?: string[],
+    radiusKm: number = 1
+  ) => {
+    if (!culturalSites || culturalSites.length === 0) {
+      setNearbyParking({ parkingLots: [], connections: [] });
+      return;
+    }
+
+    setIsSearching(true);
+    setError(null);
+
+    try {
+      const result = await apiService.findParkingNearSites(
+        culturalSites, 
+        radiusKm, 
+        parkingTypes
+      );
+      setNearbyParking(result);
+    } catch (err: any) {
+      console.error('Nearby parking search failed:', err);
+      setError(err.message || 'Failed to find nearby parking');
+      setNearbyParking({ parkingLots: [], connections: [] });
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  const clearNearbyParking = useCallback(() => {
+    setNearbyParking({ parkingLots: [], connections: [] });
+    setError(null);
+  }, []);
+
+  return {
+    nearbyParking: nearbyParking.parkingLots,
+    parkingConnections: nearbyParking.connections,
+    isSearchingParking: isSearching,
+    parkingError: error,
+    searchNearbyParking,
+    clearNearbyParking,
+    hasNearbyParking: nearbyParking.parkingLots.length > 0
   };
 }

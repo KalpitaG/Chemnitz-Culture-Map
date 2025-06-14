@@ -6,9 +6,19 @@ interface MapLegendProps {
   culturalSites: CulturalSite[];
   parkingLots: ParkingLot[];
   districts: District[];
+  // NEW: Add these props for nearby parking
+  showNearbyParking?: boolean;
+  isNearbyParking?: boolean;
 }
 
-const MapLegend: React.FC<MapLegendProps> = ({ culturalSites, parkingLots, districts }) => {
+const MapLegend: React.FC<MapLegendProps> = ({ 
+  culturalSites, 
+  parkingLots, 
+  districts,
+  // NEW: Add these props
+  showNearbyParking,
+  isNearbyParking
+}) => {
   // Category colors and emojis
   const getCategoryColor = (category: CategoryType): string => {
     switch (category) {
@@ -79,13 +89,23 @@ const MapLegend: React.FC<MapLegendProps> = ({ culturalSites, parkingLots, distr
           </div>
         )}
 
-        {/* Parking */}
+        {/* Parking - UPDATED to show nearby parking status */}
         {parkingLots.length > 0 && (
           <>
             <div className="legend-divider"></div>
             <div>
               <h5 className="legend-section-title">
-                Parking ({parkingLots.length})
+                {isNearbyParking ? 'Nearby Parking' : 'Parking'} ({parkingLots.length})
+                {isNearbyParking && (
+                  <span style={{ 
+                    fontSize: '0.75rem', 
+                    fontWeight: 'normal',
+                    color: '#6366f1',
+                    marginLeft: '0.5rem'
+                  }}>
+                    <i className="fas fa-link" style={{ fontSize: '0.7rem' }}></i> Connected
+                  </span>
+                )}
               </h5>
               <div className="legend-items">
                 {Object.values(ParkingType).map((parkingType) => {

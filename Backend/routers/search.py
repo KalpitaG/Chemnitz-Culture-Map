@@ -31,7 +31,12 @@ async def advanced_search(
         query = {"is_active": True}
 
         if q:
-            query["$text"] = {"$search": q}
+    # Use regex for more precise matching
+            query["$or"] = [
+        {"name": {"$regex": q, "$options": "i"}},  # Case-insensitive name search
+        {"description": {"$regex": q, "$options": "i"}},  # Description search
+        {"address": {"$regex": q, "$options": "i"}}  # Address search
+    ]
         if category:
             query["category"] = category
         if source:
@@ -70,7 +75,7 @@ async def advanced_search(
         sort_criteria = [(sort_by, sort_direction)]
 
         sites = await CulturalSite.find(query).sort(sort_criteria).skip(skip).limit(limit).to_list()
-        total_count = await CulturalSite.count(query)
+        total_count = await CulturalSite.find(query).count()
 
         return {
             "sites": sites,
@@ -151,8 +156,17 @@ async def autocomplete_search(q: str, limit: int = 10):
         if len(q) < 2:
             return {"suggestions": []}
 
-        regex_query = {"name": {"$regex": f"^{q}", "$options": "i"}, "is_active": True}
-        sites = await CulturalSite.find(regex_query).limit(limit).to_list()
+        regex_query = {"name": {"$regex": f"^{q}", "$options": "i"}, "is_active": True} 
+        sites = await CulturalSite.find(regex_query).sort("name").limit(limit * 2).to_list()
+        seen_names = set()
+        unique_sites = []
+        for site in sites:
+            if site.name.lower() not in seen_names:
+                seen_names.add(site.name.lower())
+                unique_sites.append(site)
+                if len(unique_sites) >= limit:
+                    break
+        sites = unique_sites
         suggestions = [
             {"id": str(site.id), "name": site.name, "category": site.category, "address": site.address}
             for site in sites

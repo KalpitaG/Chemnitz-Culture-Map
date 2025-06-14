@@ -46,6 +46,44 @@ interface DistrictName {
   name: string;
 }
 
+// Search-related interfaces
+export interface AutocompleteResponse {
+  suggestions: Array<{
+    id: string;
+    name: string;
+    category: string;
+    address?: string;
+  }>;
+  query: string;
+  total: number;
+}
+
+export interface AdvancedSearchResponse {
+  sites: CulturalSite[];
+  total: number;
+  total_matches: number;
+  filters: {
+    q?: string;
+    category?: string;
+    district?: string;
+    source?: string;
+    has_website?: boolean;
+    has_phone?: boolean;
+    has_opening_hours?: boolean;
+    created_after?: string;
+    created_before?: string;
+  };
+  pagination: {
+    limit: number;
+    skip: number;
+    has_more: boolean;
+  };
+  sorting: {
+    sort_by: string;
+    sort_order: string;
+  };
+}
+
 // Base API configuration
 const API_BASE_URL = 'http://localhost:8000';
 
@@ -341,12 +379,206 @@ export const apiService = {
     return this.getCulturalSites(params);
   },
 
+
+  // Search functionality
+  async autocompleteSearch(query: string, limit = 10): Promise<AutocompleteResponse> {
+    try {
+      if (query.length < 2) {
+        return { suggestions: [], query, total: 0 };
+      }
+      
+      const response = await api.get('/api/search/autocomplete', {
+        params: { q: query, limit }
+      });
+      
+      console.log('🔍 Autocomplete results:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Autocomplete search failed:', error);
+      return { suggestions: [], query, total: 0 };
+    }
+  },
+
+  async advancedSearch(params: {
+    q?: string;
+    category?: string;
+    district?: string;
+    source?: string;
+    has_website?: boolean;
+    has_phone?: boolean;
+    has_opening_hours?: boolean;
+    sort_by?: string;
+    sort_order?: string;
+    limit?: number;
+    skip?: number;
+  }): Promise<AdvancedSearchResponse> {
+    try {
+      const response = await api.get('/api/search/advanced', { params });
+      
+      console.log('🔍 Advanced search results:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Advanced search failed:', error);
+      throw new Error(error.response?.data?.detail || 'Search failed');
+    }
+  },
+
+  async getPopularSites(category?: string, limit = 10): Promise<{ sites: CulturalSite[]; total: number; criteria: string }> {
+    try {
+      const params: any = { limit };
+      if (category) params.category = category;
+      
+      const response = await api.get('/api/search/popular', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Failed to get popular sites:', error);
+      return { sites: [], total: 0, criteria: 'Error loading popular sites' };
+    }
+  },
+
+  async searchNearby(lat: number, lng: number, radius = 1000, category?: string, limit = 50): Promise<{ sites: CulturalSite[]; total: number }> {
+    try {
+      const params: any = { lat, lng, radius, limit };
+      if (category) params.category = category;
+      
+      const response = await api.get('/api/search/nearby', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Nearby search failed:', error);
+      return { sites: [], total: 0 };
+    }
+  },
+
   // Get sites by category with optional district
   async getSitesByCategory(category: string, district?: string): Promise<CulturalSite[]> {
     const params: SearchParams = { category: category as any };
     if (district) params.district = district;
-    
     return this.getCulturalSites(params);
+  },
+
+  // NEW: Find parking lots near cultural sites
+  async findParkingNearSites(
+    culturalSites: CulturalSite[], 
+    radiusKm: number = 1,
+    parkingTypes?: string[]
+  ): Promise<{
+    parkingLots: ParkingLot[];
+    connections: Array<{
+      siteId: string;
+      parkingId: string;
+      distance: number;
+    }>;
+  }> {
+    try {
+      if (!culturalSites || culturalSites.length === 0) {
+        return { parkingLots: [], connections: [] };
+      }
+
+      const allNearbyParking: Array<{
+        parking: ParkingLot;
+        siteId: string;
+        distance: number;
+      }> = [];
+
+      // For each cultural site, find nearby parking using geospatial API
+      for (const site of culturalSites) {
+        if (!site.location?.coordinates) continue;
+
+        const [lng, lat] = site.location.coordinates;
+        
+        try {
+          // Use existing nearby parking API
+          const response = await api.get('/api/parking-lots/near', {
+            params: {
+              lat,
+              lng,
+              radius: radiusKm * 1000, // Convert km to meters
+              limit: 20
+            }
+          });
+
+          const nearbyParking = response.data.parking_lots || response.data;
+
+          for (const parking of nearbyParking) {
+            // Apply parking type filter if specified
+            if (parkingTypes && parkingTypes.length > 0 && !parkingTypes.includes(parking.parking_type)) {
+              continue;
+            }
+
+            // Calculate distance (rough approximation)
+            if (parking.location?.coordinates) {
+              const [pLng, pLat] = parking.location.coordinates;
+              const distance = geoUtils.calculateDistance(lat, lng, pLat, pLng);
+              
+              allNearbyParking.push({
+                parking,
+                siteId: site.id,
+                distance: distance * 1000 // Convert to meters
+              });
+            }
+          }
+        } catch (error) {
+          console.error(`Error finding parking near site ${site.name}:`, error);
+        }
+      }
+
+      // Deduplicate parking lots (same parking lot found near multiple sites)
+      const uniqueParkingMap = new Map<string, {
+        parking: ParkingLot;
+        nearestSites: Array<{ siteId: string; distance: number; }>;
+      }>();
+
+      for (const item of allNearbyParking) {
+        const parkingId = item.parking.id;
+        
+        if (uniqueParkingMap.has(parkingId)) {
+          // Add this site to the existing parking's nearby sites
+          uniqueParkingMap.get(parkingId)!.nearestSites.push({
+            siteId: item.siteId,
+            distance: item.distance
+          });
+        } else {
+          // First time seeing this parking lot
+          uniqueParkingMap.set(parkingId, {
+            parking: item.parking,
+            nearestSites: [{ siteId: item.siteId, distance: item.distance }]
+          });
+        }
+      }
+
+      // Build final results
+      const uniqueParking: ParkingLot[] = [];
+      const connections: Array<{
+        siteId: string;
+        parkingId: string;
+        distance: number;
+      }> = [];
+
+      for (const [parkingId, data] of uniqueParkingMap) {
+        uniqueParking.push(data.parking);
+        
+        // Create connections to all nearby sites
+        for (const siteConnection of data.nearestSites) {
+          connections.push({
+            siteId: siteConnection.siteId,
+            parkingId: parkingId,
+            distance: siteConnection.distance
+          });
+        }
+      }
+
+      console.log(`✅ Found ${uniqueParking.length} unique parking lots near ${culturalSites.length} sites`);
+      console.log(`📊 Total connections: ${connections.length}`);
+
+      return {
+        parkingLots: uniqueParking,
+        connections
+      };
+
+    } catch (error) {
+      console.error('❌ Error finding nearby parking:', error);
+      return { parkingLots: [], connections: [] };
+    }
   },
 
   // Performance optimized endpoints
